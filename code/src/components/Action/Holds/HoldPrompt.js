@@ -274,7 +274,8 @@ export const HoldPrompt = (props) => {
      const [location, setLocation] = React.useState(pickupLocation);
      const [sublocation, setSublocation] = React.useState(null);
 
-     const rememberHoldPickupLocation = user.rememberHoldPickupLocation ?? 0;
+     logDebugMessage("Remember Hold Pickup Location in Hold Prompt is " + user.rememberHoldPickupLocation);
+     const rememberHoldPickupLocation = user.rememberHoldPickupLocation ? 1 : 0;
      const [rememberPickupLocation, setRememberPickupLocation] = React.useState(rememberHoldPickupLocation);
 
      const { width } = useWindowDimensions();
