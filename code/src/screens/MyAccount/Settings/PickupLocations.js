@@ -49,7 +49,8 @@ export const Settings_PickupLocations = () => {
 	let userPickupLocation1Id = user.myLocation1Id ?? "";
 	let userPickupLocation2Id = user.myLocation2Id ?? "";
 	let userSublocationPickupId = user.pickupSublocationId ?? "";
-	const rememberHoldPickupLocation = user.rememberHoldPickupLocation ?? 0;
+	logDebugMessage("Remember Hold Pickup Location in Preferences is " + user.rememberHoldPickupLocation);
+	const rememberHoldPickupLocation = user.rememberHoldPickupLocation ? 1 : 0;
 
 	if (_.isNumber(user.pickupLocationId)) {
 		userPickupLocationId = _.toString(user.pickupLocationId);
@@ -261,7 +262,7 @@ export const Settings_PickupLocations = () => {
 					<Checkbox
 						size="sm"
 						value={rememberPickupLocation}
-						name="rememberHoldPickupLocation"
+                              name="rememberHoldPickupLocation"
 						defaultIsChecked={rememberPickupLocation}
 						onChange={(value) => {
 							setRememberPickupLocation(value);
@@ -275,16 +276,16 @@ export const Settings_PickupLocations = () => {
 			) : null}
 			<ButtonGroup>
 				<Button bgColor={theme['colors']['primary']['500']}
-				        onPress={async () => {
-							setLoading(true);
-					        await updateHoldPickupPreferences(location, location1Id, location2Id, sublocation, rememberPickupLocation, language, library.baseUrl).then(async () => {
-								setLoading(false);
-						        await refreshProfile(library.baseUrl).then(async (result) => {
-							        updateUser(result);
-						        });
-					        })
-				        }}
-				        isDisabled={loading}>
+                         onPress={async () => {
+                              setLoading(true);
+                              await updateHoldPickupPreferences(location, location1Id, location2Id, sublocation, rememberPickupLocation, language, library.baseUrl).then(async () => {
+                                   setLoading(false);
+                                   await refreshProfile(library.baseUrl).then(async (result) => {
+                                      updateUser(result);
+                                   });
+                              })
+                         }}
+                         isDisabled={loading}>
 					{loading ? <ButtonSpinner color={theme['colors']['primary']['500-text']} /> : <ButtonText color={theme['colors']['primary']['500-text']}>{getTermFromDictionary(language, 'update')}</ButtonText>}
 				</Button>
 			</ButtonGroup>
