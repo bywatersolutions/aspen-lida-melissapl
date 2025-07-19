@@ -28,13 +28,22 @@ import { checkCachedUrl } from '../util/login';
 import { RemoveData } from '../util/logout';
 import LibraryCardScanner from './LibraryCardScanner';
 
+import { logDebugMessage, logInfoMessage, logWarnMessage, logErrorMessage } from '../util/logging.js';
+
 const prefix = Linking.createURL('/');
 console.log(prefix);
 
 enableScreens();
 
 const Stack = createNativeStackNavigator();
-const routingInstrumentation = new Sentry.ReactNavigationInstrumentation();
+
+let routingInstrumentation = null;
+try {
+     routingInstrumentation = new Sentry.ReactNavigationInstrumentation();
+}catch (e) {
+     logWarnMessage("Could not create sentry routing instrumentation " + e);
+}
+
 
 export const AuthContext = React.createContext();
 
@@ -54,25 +63,30 @@ releaseCode = releaseCode.toString();
 let distribution = Platform.OS === 'android' ? androidDist : iOSDist;
 distribution = distribution.toString();
 
-Sentry.init({
-     dsn: Constants.expoConfig.extra.sentryDSN,
-     enableAutoSessionTracking: true,
-     sessionTrackingIntervalMillis: 10000,
-     debug: false,
-     tracesSampleRate: 0.1,
-     sampleRate: 0.1,
-     environment: Updates.channel ?? Updates.releaseChannel,
-     release: releaseCode,
-     dist: distribution,
-     integrations: [
-          new Sentry.ReactNativeTracing({
-               routingInstrumentation,
-          }),
-     ],
-});
+try {
+     Sentry.init({
+          dsn: Constants.expoConfig.extra.sentryDSN,
+          enableAutoSessionTracking: true,
+          sessionTrackingIntervalMillis: 10000,
+          debug: false,
+          tracesSampleRate: 0.1,
+          sampleRate: 0.1,
+          environment: Updates.channel ?? Updates.releaseChannel,
+          release: releaseCode,
+          dist: distribution,
+          integrations: [
+               new Sentry.ReactNativeTracing({
+                    routingInstrumentation,
+               }),
+          ],
+     });
 
-Sentry.setTag('patch', GLOBALS.appPatch);
-Sentry.setTag('stage', GLOBALS.appStage);
+     Sentry.setTag('patch', GLOBALS.appPatch);
+     Sentry.setTag('stage', GLOBALS.appStage);
+}catch(e) {
+     logErrorMessage("Could not initialize sentry " + e);
+}
+
 
 export function App() {
      const queryClient = useQueryClient();
