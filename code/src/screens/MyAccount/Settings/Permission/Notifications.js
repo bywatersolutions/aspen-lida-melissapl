@@ -11,7 +11,9 @@ import { getTermFromDictionary } from '../../../../translations/TranslationServi
 import { ChevronRight, ChevronUp, ChevronDown } from 'lucide-react-native';
 import Constants from 'expo-constants';
 import { useNotificationPermissions, useNotificationPreferences } from '../../../../hooks/useNotifications';
-import { logDebugMessage, logErrorMessage } from '../../../../util/logging';
+import { refreshProfile } from '../../../../util/api/user';
+import { logDebugMessage, logWarnMessage } from '../../../../util/logging';
+import { getErrorMessage } from '../../../../util/apiAuth';
 
 export const NotificationPermissionStatus = () => {
     const { language } = React.useContext(LanguageContext);
@@ -69,7 +71,7 @@ export const NotificationPermissionDescription = () => {
     const { theme, textColor } = React.useContext(ThemeContext);
     const { language } = React.useContext(LanguageContext);
     const { library } = React.useContext(LibrarySystemContext);
-    const { user, updateExpoToken, aspenToken, updateAspenToken, notificationSettings, expoToken, userDebugMessage, updateUserDebugMessage } = React.useContext(UserContext);
+    const { user, updateNotificationSettings, updateExpoToken, aspenToken, updateAspenToken, notificationSettings, expoToken, userDebugMessage, updateUserDebugMessage } = React.useContext(UserContext);
 
     const {
         permissionStatus,
@@ -108,9 +110,22 @@ export const NotificationPermissionDescription = () => {
     }, [navigation, prevRoute, theme]);
 
     React.useEffect(() => {
-        if (expoToken) {
-            loadPreferences();
-        }
+         if (expoToken) {
+              const refreshToggles = async () => {
+                   await refreshProfile(library.baseUrl).then(async (result) => {
+                        if (result.ok) {
+                             const data = result.data.result;
+                             updateNotificationSettings(data.notification_preferences, language, false);
+                             await loadPreferences();
+                        } else {
+                             logWarnMessage('Could not refresh profile while loading notification preferences.');
+                             logDebugMessage(result);
+                             getErrorMessage(result.code ?? 0, result.problem);
+                        }
+              });
+              }
+              refreshToggles();
+         }
     }, [expoToken]);
 
     React.useEffect(() => {
