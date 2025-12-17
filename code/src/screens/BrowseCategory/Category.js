@@ -157,7 +157,7 @@ const DisplayBrowseCategoryRecord = ({record}) => {
 
      let type = 'grouped_work';
      if (!_.isUndefined(record.source)) {
-          if (record.source === 'library_calendar' || record.source === 'springshare_libcal' || record.source === 'communico' || record.source === 'assabet') {
+          if (record.source === 'library_calendar' || record.source === 'springshare_libcal' || record.source === 'communico' || record.source === 'assabet' || record.source === 'aspenEvents') {
                type = 'Event';
           } else {
                type = record.source;
