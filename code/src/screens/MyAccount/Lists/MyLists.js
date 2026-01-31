@@ -32,14 +32,9 @@ export const MyLists = () => {
      const { library } = React.useContext(LibrarySystemContext);
      const { lists, updateLists, listGroups, updateListGroups } = React.useContext(UserContext);
      const { language } = React.useContext(LanguageContext);
+
      const [page, setPage] = React.useState(1);
-     const [pageGroups, setPageGroups] = React.useState(1);
-     const [pageUnassigned, setPageUnassigned] = React.useState(1);
-
      const [paginationLabel, setPaginationLabel] = React.useState('Page 1 of 1');
-     const [paginationGroupsLabel, setPaginationGroupsLabel] = React.useState('Page 1 of 1');
-     const [paginationUnassignedLabel, setPaginationUnassignedLabel] = React.useState('Page 1 of 1');
-
 
      const [loading, setLoading] = React.useState(false);
 
@@ -84,7 +79,7 @@ export const MyLists = () => {
                if (hasPendingChanges) {
                     setLoading(true);
                     queryClient.invalidateQueries({ queryKey: ['lists', user.id, page, library.baseUrl, language] });
-                    queryClient.invalidateQueries({ queryKey: ['list_groups', user.id, pageGroups, pageUnassigned, library.baseUrl, language] });
+                    queryClient.invalidateQueries({ queryKey: ['list_groups', user.id, library.baseUrl, language] });
                     if(currentListGroup !== -1) {
                          updateSelectedListGroup(currentListGroup);
                     }
@@ -108,14 +103,13 @@ export const MyLists = () => {
           initialData: lists,
           onSuccess: (data) => {
                if(data.ok) {
-                    const lists = formatLists(data.data.result);
+                    const results = data.data.result;
+                    const lists = formatLists(results.lists);
                     updateLists(lists)
-                    if (lists.page_total) {
-                         let tmp = getTermFromDictionary(language, 'page_of_page');
-                         tmp = tmp.replace('%1%', page);
-                         tmp = tmp.replace('%2%', lists.page_total);
-                         setPaginationLabel(tmp);
-                    }
+                    let tmp = getTermFromDictionary(language, 'page_of_page');
+                    tmp = tmp.replace('%1%', page ?? 1);
+                    tmp = tmp.replace('%2%', results.page_total ?? 1);
+                    setPaginationLabel(tmp);
                } else {
                     logDebugMessage("Error fetching user linked accounts");
                     logDebugMessage(data);
@@ -132,41 +126,15 @@ export const MyLists = () => {
           }
      });
 
-     useQuery(['list_groups', user.id, pageGroups, pageUnassigned, library.baseUrl, language], () => getListGroups(library.baseUrl, pageGroups, pageUnassigned, pageSize, 1), {
+     useQuery(['list_groups', user.id, library.baseUrl, language], () => getListGroups(library.baseUrl), {
           initialData: listGroups,
           onSuccess: (data) => {
                if(data.ok) {
-                    const results = {
-                         groups: data.data?.result?.groups ?? [
-                              {
-                                   groups: [],
-                                   page_current: 1,
-                                   totalResults: 0,
-                                   page_total: 1,
-                              }
-                         ],
-                         unassigned: data.data?.result?.unassigned ?? [
-                              {
-                                   lists: [],
-                                   page_current: 1,
-                                   totalResults: 0,
-                                   page_total: 1,
-                              }
-                         ],
+                    const groups = {
+                         groups: data.data?.result?.groups ?? [],
+                         unassigned: data.data?.result?.unassigned ?? 0
                     };
-                    updateListGroups(results);
-                    if (results.groups.page_total) {
-                         let tmp = getTermFromDictionary(language, 'page_of_page');
-                         tmp = tmp.replace('%1%', pageGroups);
-                         tmp = tmp.replace('%2%', results.groups.page_total);
-                         setPaginationGroupsLabel(tmp);
-                    }
-                    if (results.unassigned.page_total) {
-                         let tmp = getTermFromDictionary(language, 'page_of_page');
-                         tmp = tmp.replace('%1%', pageUnassigned);
-                         tmp = tmp.replace('%2%', results.unassigned.page_total);
-                         setPaginationUnassignedLabel(tmp);
-                    }
+                    updateListGroups(groups);
                } else {
                     logDebugMessage("Error fetching user list groups");
                     logDebugMessage(data);
@@ -204,9 +172,14 @@ export const MyLists = () => {
      const updateSelectedListGroup = async (groupId) => {
           setLoading(true);
           setCurrentListGroup(groupId);
-          await getListGroupDetails(groupId, library.baseUrl).then((res) => {
+          await getListGroupDetails(groupId, library.baseUrl, page, pageSize, 1).then((res) => {
                if(res.ok) {
-                    setCurrentListGroupData(res.data.result);
+                    const data = res.data.result;
+                    let tmp = getTermFromDictionary(language, 'page_of_page');
+                    tmp = tmp.replace('%1%', page ?? 1);
+                    tmp = tmp.replace('%2%', data.page_total ?? 1);
+                    setPaginationLabel(tmp);
+                    setCurrentListGroupData(data);
                } else {
                     logDebugMessage("Error fetching user list group details for group " + groupId);
                     logDebugMessage(res);
@@ -216,25 +189,15 @@ export const MyLists = () => {
           setLoading(false);
      }
 
-     const updatePage = async (value) => {
-          logDebugMessage('updatePage for lists (no groups): ' + value);
+     const updatePage = async (value, type) => {
+          logDebugMessage('updatePage for ' + type + ": " + value);
           setLoading(true);
           setPage(value);
+          if(type === 'listGroup') {
+               await queryClient.refetchQueries({ queryKey: ['list_groups', user.id, value, library.baseUrl] });
+               return;
+          }
           await queryClient.refetchQueries({ queryKey: ['lists', user.id, value, library.baseUrl] });
-     };
-
-     const updatePageGroups = async (value) => {
-          logDebugMessage('updatePage for list groups: ' + value);
-          setLoading(true);
-          setPageGroups(value);
-          await queryClient.refetchQueries({ queryKey: ['list_groups', user.id, value, library.baseUrl] });
-     };
-
-     const updatePageUnassigned = async (value) => {
-          logDebugMessage('updatePage for unassigned lists: ' + value);
-          setLoading(true);
-          setPageUnassigned(value);
-          await queryClient.refetchQueries({ queryKey: ['list_groups', user.id, value, library.baseUrl] });
      };
 
      const handleOpenList = (item) => {
@@ -327,7 +290,8 @@ export const MyLists = () => {
           return null;
      };
 
-     const groupsPaging = () => {
+     const Paging = (type) => {
+          const $type = type === 'lists' ? lists : currentListGroupData;
           return (
                <Box
                     p="$2"
@@ -341,71 +305,29 @@ export const MyLists = () => {
                               <Button
                                    bgColor={theme['colors']['primary']['500']}
                                    onPress={async () => {
-                                        if (pageGroups > 1) {
-                                             updatePageGroups(pageGroups - 1)
+                                        if (page > 1) {
+                                             updatePage(page - 1, type);
                                         }
                                    }}
-                                   isDisabled={pageGroups === 1}>
+                                   isDisabled={page === 1}>
                                    <ButtonText color={theme['colors']['primary']['500-text']} >{getTermFromDictionary(language, 'previous')}</ButtonText>
                               </Button>
                               <Button
                                    bgColor={theme['colors']['primary']['500']}
                                    onPress={async () => {
-                                        if (lists?.page_current !== lists?.page_total) {
+                                        if ($type?.page_current !== $type?.page_total) {
                                              logDebugMessage('Adding to page');
-                                             let newPage = pageGroups + 1;
-                                             updatePageGroups(newPage);
+                                             let newPage = page + 1;
+                                             updatePage(newPage, type);
                                         }
                                    }}
-                                   isDisabled={!(listGroups.groups?.page_current !== listGroups.groups?.page_total)}>
+                                   isDisabled={!($type?.page_current !== $type?.page_total)}>
                                    <ButtonText color={theme['colors']['primary']['500-text']} >{getTermFromDictionary(language, 'next')}</ButtonText>
                               </Button>
                          </ButtonGroup>
                     </ScrollView>
                     <Text mt="$2" fontSize="$sm" color={textColor}>
-                         {paginationGroupsLabel}
-                    </Text>
-               </Box>
-          )
-     }
-
-     const unassignedPaging = () => {
-          return (
-               <Box
-                    p="$2"
-                    borderTopWidth="$1"
-                    bgColor={colorMode === 'light' ? theme['colors']['coolGray']['100'] : theme['colors']['coolGray']['700']}
-                    borderColor={colorMode === 'light' ? theme['colors']['coolGray']['400'] : theme['colors']['gray']['600']}
-                    flexWrap="nowrap"
-                    alignItems="center">
-                    <ScrollView horizontal>
-                         <ButtonGroup size="sm">
-                              <Button
-                                   bgColor={theme['colors']['primary']['500']}
-                                   onPress={async () => {
-                                        if (pageUnassigned > 1) {
-                                             updatePageUnassigned(pageUnassigned - 1)
-                                        }
-                                   }}
-                                   isDisabled={pageUnassigned === 1}>
-                                   <ButtonText color={theme['colors']['primary']['500-text']} >{getTermFromDictionary(language, 'previous')}</ButtonText>
-                              </Button>
-                              <Button
-                                   bgColor={theme['colors']['primary']['500']}
-                                   onPress={async () => {
-                                        if (listGroups.unassigned?.page_current !== listGroups.unassigned?.page_total) {
-                                             logDebugMessage('Adding to page');
-                                             let newPage = pageUnassigned + 1;
-                                             updatePageUnassigned(newPage);
-                                        }
-                                   }}
-                                   isDisabled={!(listGroups.unassigned?.page_current !== listGroups.unassigned?.page_total)}>
-                                   <ButtonText color={theme['colors']['primary']['500-text']} >{getTermFromDictionary(language, 'next')}</ButtonText>
-                              </Button>
-                         </ButtonGroup>
-                    </ScrollView>
-                    <Text mt="$2" fontSize="$sm" color={textColor}>
-                         {paginationUnassignedLabel}
+                         {paginationLabel}
                     </Text>
                </Box>
           )
@@ -452,7 +374,7 @@ export const MyLists = () => {
                                              {_.map(Object.values(listGroups.groups.groups), function (item, index, array) {
                                                   return <SelectItem key={index} value={item.id} label={item.title} bgColor={currentListGroup === item.id ? theme['colors']['tertiary']['300'] : ''} sx={{ _text: { color: currentListGroup === item.id ? theme['colors']['tertiary']['500-text'] : textColor } }} />;
                                              })}
-                                             {listGroups.unassigned.lists.length > 0 ? <SelectItem key={-1} value="-1" label={getTermFromDictionary(language, 'unassigned_lists')} bgColor={currentListGroup == "-1" ? theme['colors']['tertiary']['300'] : ''} sx={{ _text: { color: currentListGroup == "-1" ? theme['colors']['tertiary']['500-text'] : textColor } }} /> : null}
+                                             {listGroups.unassigned > 0 ? <SelectItem key={-1} value="-1" label={getTermFromDictionary(language, 'unassigned_lists')} bgColor={currentListGroup == "-1" ? theme['colors']['tertiary']['300'] : ''} sx={{ _text: { color: currentListGroup == "-1" ? theme['colors']['tertiary']['500-text'] : textColor } }} /> : null}
                                         </SelectContent>
                                    </SelectPortal>
                               </Select>
@@ -471,54 +393,14 @@ export const MyLists = () => {
                                         )}
                                         </Box>
                                         <FlatList contentContainerStyle={{ paddingBottom: 200 }} mt="$2" data={currentListGroupData.listsInGroup} renderItem={({ item }) => renderList(item, library.baseUrl)} keyExtractor={(item, index) => index.toString()} ListEmptyComponent={listEmptyComponent} />
-                                        {currentListGroup != "-1" ? (
-                                             {groupsPaging}
-                                        ) : (
-                                             {unassignedPaging}
-                                        )}
+                                        {Paging('listGroup')}
                                         </Box>
                               ) : null}
                          </Box>
                     ) : (
                          <>
                               <FlatList px="$5" mt="$2" data={lists} ListEmptyComponent={listEmptyComponent} renderItem={({ item }) => renderList(item, library.baseUrl)} keyExtractor={(item, index) => index.toString()} />
-                              <Box
-                                   p="$2"
-                                   borderTopWidth="$1"
-                                   bgColor={colorMode === 'light' ? theme['colors']['coolGray']['100'] : theme['colors']['coolGray']['700']}
-                                   borderColor={colorMode === 'light' ? theme['colors']['coolGray']['400'] : theme['colors']['gray']['600']}
-                                   flexWrap="nowrap"
-                                   alignItems="center">
-                                   <ScrollView horizontal>
-                                        <ButtonGroup size="sm">
-                                             <Button
-                                                  bgColor={theme['colors']['primary']['500']}
-                                                  onPress={async () => {
-                                                       if (page > 1) {
-                                                            updatePage(page - 1)
-                                                       }
-                                                  }}
-                                                  isDisabled={page === 1}>
-                                                  <ButtonText color={theme['colors']['primary']['500-text']} >{getTermFromDictionary(language, 'previous')}</ButtonText>
-                                             </Button>
-                                             <Button
-                                                  bgColor={theme['colors']['primary']['500']}
-                                                  onPress={async () => {
-                                                       if (lists?.page_current !== lists?.page_total) {
-                                                            logDebugMessage('Adding to page');
-                                                            let newPage = page + 1;
-                                                            updatePage(newPage);
-                                                       }
-                                                  }}
-                                                  isDisabled={!(lists?.page_current !== lists?.page_total)}>
-                                                  <ButtonText color={theme['colors']['primary']['500-text']} >{getTermFromDictionary(language, 'next')}</ButtonText>
-                                             </Button>
-                                        </ButtonGroup>
-                                   </ScrollView>
-                                   <Text mt="$2" fontSize="$sm" color={textColor}>
-                                        {paginationLabel}
-                                   </Text>
-                              </Box>
+                              {Paging('lists')}
                          </>
                     )}
           </Box>
