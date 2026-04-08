@@ -3,13 +3,13 @@
       "slug": "melissapl",
       "easId": "9aa82af1-fcbc-4d96-a05e-f1bbf6d397da",
       "reverseDns": "org.aspendiscovery.melissapl",
-      "discoveryUrl": "melissapl.aspendiscovery.org",
-      "greenhouseUrl": "melissapl.aspendiscovery.org",
+      "discoveryUrl": "https://melissapl.aspendiscovery.org",
+      "greenhouseUrl": "https://melissapl.aspendiscovery.org",
       "libraryId": "3",
       "themeId": "1",
       "background": "#ffffff",
       "sentryProject": "aspen-lida-melissapl",
       "sentryDsn": "https://8c9d5d1ab5fdbb6f73c4642d5493e575@o994439.ingest.us.sentry.io/4511185293082624",
-      "ascAppId": "tbd",
+      "ascAppId": "6761850573",
       "logLevel": "0"
 }
